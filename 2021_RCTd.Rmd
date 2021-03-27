@@ -1,0 +1,95 @@
+---
+title: "Kuidas me teame, et vaktsiinid on piisavalt ohutud?"
+author: "Maris Vainre, Mõttekoda Praxis analüütik, Cambridge’i ülikooli doktorant"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = FALSE)
+library(tidyverse)
+library(readxl)
+options(scipen=999) #ära astmenda kui tulemusi näitad
+options(OutDec= ",") #olgu komakoht eraldatud komaga, mitte punktiga
+```
+
+*See, kas midagi tundub meile piisavalt mõjus ja ka ohutu, sõltub meie taustateadmistest. Teadlased, valdkonnaeksperdid ja ajakirjanikud saavad aidata inimestel teha tõenduspõhiseid valikuid, argumenteerib Maris Vainre.*
+
+Kas 11 on palju või vähe? Sõltub. Kui need 11 on soojapügalad ja on jaanuarikuu kesköö, siis on 11 palju. 11 on vähe, kui vaatame sama termomeetrit mõnel juulikuisel keskpäeval. Kontekst on oluline.
+
+ERR raporteeris, et 15. märtsiga alanud nädalal “tõi vaktsineerimine 11 tõsisemat kõrvaltoimet”[^1]. Kas seda on palju või vähe? Tüüpiliste talve- ja suvetemperatuuride kohta on meil välja kujunenud taustateadmised. On ülearune selgitada, et +11°C on juuli keskpäeva kohta haruldaselt külm. Kuigi olgem ausad, meedia kuulutaks seda pealkirjades sellegipoolest. Kui räägime vaktsiinide, ravimite, raviprotseduuride või üleüldiselt sekkumisprogrammide mõjust ja kõrvalmõjust, siis peaksime ka neid puudutavat infot esitama samasuguste innukate kommentaaridega. Kas 11 tõsiste terviseprobleemide all kannatavat inimest on palju? Kas neid on liiga palju? 
+
+Kui me tahame teada mõne programmi või sekkumise mõju, siis oskavad paljud välja pakkuda viisi, kuidas seda välja selgitada: mõõdame olukorda enne ja olukorda pärast programmi ja siis võrdleme tulemusi. Vaadake Riigihangete portaali, see kubiseb enne-pärast-formaadis mõjule hinnangu andmise palvetest. Enne-pärast lähenemise probleem on, et kui me saame vastuse, näiteks 11, siis me tegelikult ikka ei tea, mida see tähendab. Meil on vaja paralleelmaailma, kus seda programmi või vaktsiini ei ole, aga kõik muu on sama. Nii saaksime teada, kas ilma selle sekkumiseta -- või antud juhul vaktsiinita -- oleks tulemus olnud ka 11 või sellest piisavalt erinev.
+
+Selliseid paralleelmaailmaid saab konstrueerida. Üks usaldusväärseimaid viise on neid luua juhuslikustatud kontrolluuringute abil. Uuringusse kaasatud inimesed jaotatakse gruppidesse ja seda tehakse loterii alusel. Osad saavad vaktsiini või osalevad meid huvitavas programmis. Teised elavad oma elu edasi nii nagu varem[^3]. Loterii tagab selle, et võrdlusgrupid on võimalikult sarnased. Näiteks, et ühes grupis ei oleks inimesed, kel on rohkem kroonilisi haiguseid kui teise gruppi kuulujatel. Kui lubate mulle kiire ääremärkuse, siis see sarnaste võrdlusgruppide puudumise probleem on Eestis laiaulatuslik, nagu võite järeldada viitest Riigihangete registrile. Ütleme, et me juhtume hindama töötute tööhõive parandamiseks loodud sekkumist. Me peame veenduma, et programmi ei satuks vaid need, kes on eriliselt motiveeritud tööle naasma või on muul viisil teistest töötutest erinevad. Loterii on tähtis eeldusel, et meil huvi on teada, kas riikliku programmi, sh vaktsiini, edukus tuleneb sekkumisest endast, mitte osalejate omadustest.
+
+```{r arvutused, include=FALSE}
+#########################################################################
+# Vaktsineeritute andmed + kõrvaltoimed
+VaktsineerimisiAndmed <- read.csv("andmed/vaktsineerimised.csv")
+VaktsineerimisiAndmed$StatisticsDate <- lubridate::dmy(as.factor(VaktsineerimisiAndmed$ï..StatisticsDate))
+
+VaktsineerimisiAndmed <- VaktsineerimisiAndmed %>%
+  filter(VaktsineerimisiAndmed$StatisticsDate > "2021-02-28" & VaktsineerimisiAndmed$StatisticsDate < "2021-03-23")
+
+VaktsineeritudKeskmiselt_week <- sum(VaktsineerimisiAndmed$DailyCount)/3 #keskmine vaktsineerimiste arv kolme nädala kohta märtsis
+  
+SE1503 <- 11 #tõsised kõrvalmõjud 15. märtsiga alanud nädalal
+osakaal_SE <- SE1503/VaktsineeritudKeskmiselt_week 
+
+
+haigusjuhud1503 <- 10308 #15.03 alanud nädalal kokku
+
+#########################################################################
+
+# Uuringute andmed
+UuringuteAndmed <- readxl::read_xlsx("andmed/Covid19vaktsiinid_RCTd.xlsx") #korjasin käsitsi artiklitest kokku
+
+
+
+nakatumisiKatsetes1 <- UuringuteAndmed %>% #katsegrupp
+  filter(Vaktsineeritud == 1) %>%
+  summarise(N_total = sum(N),
+            SE_K = sum(SevereSideEffects),
+            Nakatunud_total = sum(Nakatunud),
+            osakaal_nakatunudvaktsineeritudK = sum(Nakatunud_total)/N_total,
+            osakaal_SE = sum(SevereSideEffects)/N_total)
+
+nakatumisiKatsetes0 <- UuringuteAndmed %>% #kontrollgrupp
+  filter(Vaktsineeritud == 0) %>%
+  summarise(N_total = sum(N),
+            SE_K = sum(SevereSideEffects),
+            Nakatunud_total = sum(Nakatunud),
+            osakaal_nakatunudvaktsineeritudK = sum(Nakatunud_total)/N_total,
+            osakaal_SE = sum(SevereSideEffects)/N_total)
+
+#########################################################################
+# Jätsin selle lõpuks artiklist välja, sest oleks läinud liiga laiaks:
+
+#vaktsineerituidEestis <- 223633
+#nakatumisiVEestis <- 490
+#osakaal_nakatunudvaktsineeritudE <- nakatumisiVEestis/vaktsineerituidEestis #0.002 ehk 0.2%
+
+```
+
+Aga tagasi nende 11 inimese juurde, kes kannatasid pärast vaktsiini saamist. Kas me peaksime muretsema? Jah, nende üheteistkümne inimese pärast küll. Aga vaktsiinide pärast? Lähedaseim paralleelmaailm neile, kes on juba saanud vaktsiini, koosneb neist, kes seda veel saanud ei ole. Selliseid gruppe loodi teadusuuringute käigus, mis mõõtsid vaktsiinide turvalisust ja tõhusust. Neis jaotati inimesed juhuslikult kahte gruppi, ühed said vaktsiini ja teised mitte. Et hinnata, kas 11 terviserikke tõttu kannatavat inimest on palju, peame uurima, kui palju on mittevaktsineeritute seas neid, kelle tervis sarnaselt tõsiselt kannatab.
+
+AstraZeneca/Oxfordi[^4], Moderna[^5] ja Pfizer/BioNtechi[^6] uuringutes osales kokku `r round(nakatumisiKatsetes0$N_total + nakatumisiKatsetes1$N_total, digits=0)` inimest. Tõsiseid kõrvalmõjusid tekkis nendes kolmes uuringus osalenutest `r round(nakatumisiKatsetes0$SE_K + nakatumisiKatsetes1$SE_K, digits=0)`-l. Neist `r round(nakatumisiKatsetes0$SE_K, digits=0)` ei saanud tegelikult vaktsiini ja ülejäänud `r round(nakatumisiKatsetes1$SE_K, digits=0)` said. Ehk teisiti öeldes: tõsiseid kõrvalmõjusid tekkis `r round((nakatumisiKatsetes1$SE_K/sum(nakatumisiKatsetes1$N_total)*10000), digits=0)`-l igast 10 000-st uuringu käigus vaktsineeritust. 
+
+Kui Eestis oli 11 inimest, kel vaktsiini saamise järel tekkis tõsine terviseprobleem, siis palju oli neid inimesi, keda samal ajal vaktsineeriti ja kel selliseid terviserikkeid ei tekkinud? Ma ei osanud seda täpselt välja selgitada, sest küllap on Ravimiametil raske hinnata, millise perioodi vaktsineeritute pealt need 11 juhtumit kujunenud on. Pakun siinkohal välja hinnangu. Meie vaktsineerimise kulg viimasel kolmel nädalal olnud võrdlemisi sarnane. Kolmel esimesel märtsi nädalal tehti keskmiselt `r round(VaktsineeritudKeskmiselt_week, digits = 0)` vaktsineerimist[^7], nii esimesi kui ka teisi doose kokku. Kui eeldada, et 15. märtsi nädalal Ravimiametile teada antud kõrvalmõjujuhtumid tekkisid enamasti neil, keda märtsis vaktsineeriti ja et kõrvalmõjud võivad tekkida nii pärast esimest kui ka teist doosi, siis tõsiseid kõrvalmõjusid tekkis `r round((11/VaktsineeritudKeskmiselt_week)*10000, digits=0)`-l inimesel iga 10 000 vaktsiini saaja kohta. Samas, tuletagem meelde, et me vaktsineerime hetkel vanemaaealisi ja neid, kel on kroonilisi haiguseid. Ehk teisiti, neid, kel on suur tõenäosus tõsiselt haigestuda ja seda sõltumata vaktsiinist. Me ei saa ilma põhjaliku uurimiseta öelda, et vaktsiin põhjustas tervisehäda.
+
+Tõsised terviseprobleemid on muidugi murettekitavad. Et aru saada, kas risk vaktsiinide läbi võimalikku kahju tekitada väärib kasu, mis tekib vaktsineerimise abil viiruse leviku piiramisest, peame taas vaatama paralleelmaailmasse, kus me inimesi ei vaktsineeri. Võtame näiteks meie oma koduse Eesti, kus on palju neid inimesi, keda pole veel vaktsineeritud. Peame ka meeles pidama, et siin ei ole gruppikuuluvus enam juhuslik vaid sõltub  vanusest, tervisest ja ka isiklikest valikutest. Terviseamet hindab, et haiglaravi vajab umbes 6,4% covid-19 haigestunud inimestest[^2], haiglasse niisama ei satuta ja ma teen eelduse, et nende 6,4% covid-19-haige seisund on vähemalt tõsine. Kui vaktsiinid võisid Eestis märtsi keskel põhjustada tõsiseid kõrvaltoimeid igal `r round((11/VaktsineeritudKeskmiselt_week)*10000, digits=0)`-l 10 000-st -- mäletate, põhjuslik seos ei ole kindel -- siis 15. märtsiga alanud nädalal haigestunud `r haigusjuhud1503`st inimesest põeb seda tõenäoliselt tõsiselt, st haiglaravi vajades, läbi `r round(haigusjuhud1503*0.064, digits=0)` ehk `r round(6.4*100, digits=0)` iga 10 000 inimese kohta. See vahe on enam kui kahesajakordne. Õieti on see näitaja madalam kui täiesti ilma vaktsiinideta maailmas. Meie seekordne paralleelmaailm ei olnud ideaalselt juhuslik ega kontrollitult eraldatud. Vaktsiini saanute maailm tuleb mitte-saanutele appi, sest vaktsiini saamine leevendab haiguse kulgu ja nende 660 asemel oleks ilma vaktsiinideta rohkem haiglaravi vajajaid.
+
+Me ei ole harjunud selliseid võrdlusi tegema, ega ka otsima. See on olnud pigem teadlaste ja analüütikute pärusmaa. Isegi meile on see keeruline: mul võttis see ülevaade tunde, sest andmeid tuli erinevatest allikatest kokku otsida ja ajuti ise arvutada. See pole mõistlik: esiteks pruugi ma kõiki nüansse oma kalkulatsioonides arvestada osata ja teiseks on need andmed ja teadmised kuskil kellegi peades ja ehk dokumentideski juba olemas. Need peaksid olema kättesaadavamad, arusaadavamad, kasutajasõbralikumad. Ajakirjanikel pole luksust kulutada tunde, et oma artikleid kirjutada. 
+
+Ajapuuduses läbimõtlematud ja sensatsioonilised pealkirjad toovad küll lugejaid ent seda rahva tervise arvelt. 11 on kõigest neutraalne arv, kuni me seda enda jaoks mõtestada püüame. Kui me ei loo andmetele tähendusi empiirika abil, siis täidavad selle tühimiku mured, hirmud või soovmõtlemine. Konteksti loomine aitaks ühiskonda pookida valeinfo suhtes ja seeläbi tõstaks meie usaldust mitte ainult vaktsiinide vaid ka teaduse ja laiemalt riiklike programmide suhtes.
+
+Meil kõigil tuleb õppida informatsioonis paremini orienteeruma. Meil tuleb siin üksteisele appi tulla: need, kes seda juba oskavad - teadlased, valdkonnaeksperdid ja riigiametid, sh Terviseamet, teadusnõukogugi - saavad pakkuda tuge ja materjale, kuidas arve tõlgendada neile, kes infot avalikkusele pakuvad. Rahvusringhäälingul ja teistel, kelle soov on tasakaalustatult informatsiooni edastada, on omakorda õigus admetele konteksti nõuda ja kohustus seda esitada.
+
+
+[^1]: Nael, M. (2021, märts 22). [Eelmisel nädalal tõi vaktsineerimine 11 tõsisemat kõrvaltoimet](https://www.err.ee/1608151147/eelmisel-nadalal-toi-vaktsineerimine-11-tosisemat-korvaltoimet). ERR. 
+[^2]: Terviseamet. (2021, märts 22). [COVID-19 andmed seisuga 22.03.2021](https://www.terviseamet.ee/sites/default/files/Nakkushaigused/COVID-19/ulevaade_22.03.2021.pdf). 
+[^3]: Tunnistan, et see on lihtsustatud. Vahel nad ei tea, et nad elavad elu edasi nagu varem, näiteks seetõttu, et nad said platseebot ehk mõjuaineta ainet, vaktsiinide puhul sageli spetsiaalset soolavett. Vahel nad teavad, et nad ei sattunud katsegruppi ja ka sel teadmisel võib olla oma mõju.
+[^4]: Voysey, M., Clemens, S. A. C., Madhi, S. A., Weckx, L. Y., Folegatti, P. M., Aley, P. K., Angus, B., Baillie, V. L., Barnabas, S. L., Bhorat, Q. E., Bibi, S., Briner, C., Cicconi, P., Collins, A. M., Colin-Jones, R., Cutland, C. L., Darton, T. C., Dheda, K., Duncan, C. J. A., … Zuidewind, P. (2021). [Safety and efficacy of the ChAdOx1 nCoV-19 vaccine (AZD1222) against SARS-CoV-2: An interim analysis of four randomised controlled trials in Brazil, South Africa, and the UK](https://doi.org/10.1016/S0140-6736(20)32661-1). The Lancet, 397(10269), 99–111. 
+[^5]: Baden, L. R., El Sahly, H. M., Essink, B., Kotloff, K., Frey, S., Novak, R., Diemert, D., Spector, S. A., Rouphael, N., Creech, C. B., McGettigan, J., Khetan, S., Segall, N., Solis, J., Brosz, A., Fierro, C., Schwartz, H., Neuzil, K., Corey, L., … Zaks, T. (2021). [Efficacy and Safety of the mRNA-1273 SARS-CoV-2 Vaccine](https://doi.org/10.1056/NEJMoa2035389). New England Journal of Medicine, 384(5), 403–416. 
+[^6]: Polack, F. P., Thomas, S. J., Kitchin, N., Absalon, J., Gurtman, A., Lockhart, S., Perez, J. L., Pérez Marc, G., Moreira, E. D., Zerbini, C., Bailey, R., Swanson, K. A., Roychoudhury, S., Koury, K., Li, P., Kalina, W. V., Cooper, D., Frenck, R. W., Hammitt, L. L., … Gruber, W. C. (2020). [Safety and Efficacy of the BNT162b2 mRNA Covid-19 Vaccine](https://doi.org/10.1056/NEJMoa2034577). New England Journal of Medicine, 383(27), 2603–2615. 
+[^7]: Terviseamet. (2021). [Covid-19 vaktsineerimise üleriigiline andmestik](https://www.terviseamet.ee/et/koroonaviirus/avaandmed). 
