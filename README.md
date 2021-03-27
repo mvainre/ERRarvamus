@@ -1,2 +1,2 @@
-# ERRarvamus
-R Markdown versioon ERR arvamusküljel ilmunud artiklile "Kuidas me teame, et vaktsiinid on piisavalt ohutud?"
+# Kuidas me teame, et vaktsiinid on piisavalt ohutud?"
+Repo ERR arvamusküljel ilmunud artiklile, milles on näha ka arvutused ja algandmed.
