@@ -25,15 +25,16 @@ Selliseid paralleelmaailmaid saab konstrueerida. Üks usaldusväärseimaid viise
 ```{r arvutused, include=FALSE}
 #########################################################################
 # Vaktsineeritute andmed + kõrvaltoimed
-VaktsineerimisiAndmed <- read.csv("andmed/vaktsineerimised.csv")
-VaktsineerimisiAndmed$StatisticsDate <- lubridate::dmy(as.factor(VaktsineerimisiAndmed$ï..StatisticsDate))
+VaktsineerimisiAndmed <- read.csv("andmed/vaktsineerimised.csv") #Terviseameti kodukalt alla laaditud
 
+# Andmete valmis seadmine
+VaktsineerimisiAndmed$StatisticsDate <- lubridate::dmy(as.factor(VaktsineerimisiAndmed$ï..StatisticsDate))
 VaktsineerimisiAndmed <- VaktsineerimisiAndmed %>%
   filter(VaktsineerimisiAndmed$StatisticsDate > "2021-02-28" & VaktsineerimisiAndmed$StatisticsDate < "2021-03-23")
 
 VaktsineeritudKeskmiselt_week <- sum(VaktsineerimisiAndmed$DailyCount)/3 #keskmine vaktsineerimiste arv kolme nädala kohta märtsis
   
-SE1503 <- 11 #tõsised kõrvalmõjud 15. märtsiga alanud nädalal
+SE1503 <- 11 #tõsised kõrvalmõjud 15. märtsiga alanud nädalal, ERRi järgi
 osakaal_SE <- SE1503/VaktsineeritudKeskmiselt_week 
 
 
@@ -46,7 +47,7 @@ UuringuteAndmed <- readxl::read_xlsx("andmed/Covid19vaktsiinid_RCTd.xlsx") #korj
 
 
 
-nakatumisiKatsetes1 <- UuringuteAndmed %>% #katsegrupp
+Uuringud_KG <- UuringuteAndmed %>% #katsegrupp
   filter(Vaktsineeritud == 1) %>%
   summarise(N_total = sum(N),
             SE_K = sum(SevereSideEffects),
@@ -54,7 +55,7 @@ nakatumisiKatsetes1 <- UuringuteAndmed %>% #katsegrupp
             osakaal_nakatunudvaktsineeritudK = sum(Nakatunud_total)/N_total,
             osakaal_SE = sum(SevereSideEffects)/N_total)
 
-nakatumisiKatsetes0 <- UuringuteAndmed %>% #kontrollgrupp
+Uuringud_PG <- UuringuteAndmed %>% #kontrollgrupp
   filter(Vaktsineeritud == 0) %>%
   summarise(N_total = sum(N),
             SE_K = sum(SevereSideEffects),
@@ -73,7 +74,7 @@ nakatumisiKatsetes0 <- UuringuteAndmed %>% #kontrollgrupp
 
 Aga tagasi nende 11 inimese juurde, kes kannatasid pärast vaktsiini saamist. Kas me peaksime muretsema? Jah, nende üheteistkümne inimese pärast küll. Aga vaktsiinide pärast? Lähedaseim paralleelmaailm neile, kes on juba saanud vaktsiini, koosneb neist, kes seda veel saanud ei ole. Selliseid gruppe loodi teadusuuringute käigus, mis mõõtsid vaktsiinide turvalisust ja tõhusust. Neis jaotati inimesed juhuslikult kahte gruppi, ühed said vaktsiini ja teised mitte. Et hinnata, kas 11 terviserikke tõttu kannatavat inimest on palju, peame uurima, kui palju on mittevaktsineeritute seas neid, kelle tervis sarnaselt tõsiselt kannatab.
 
-AstraZeneca/Oxfordi[^4], Moderna[^5] ja Pfizer/BioNtechi[^6] uuringutes osales kokku `r round(nakatumisiKatsetes0$N_total + nakatumisiKatsetes1$N_total, digits=0)` inimest. Tõsiseid kõrvalmõjusid tekkis nendes kolmes uuringus osalenutest `r round(nakatumisiKatsetes0$SE_K + nakatumisiKatsetes1$SE_K, digits=0)`-l. Neist `r round(nakatumisiKatsetes0$SE_K, digits=0)` ei saanud tegelikult vaktsiini ja ülejäänud `r round(nakatumisiKatsetes1$SE_K, digits=0)` said. Ehk teisiti öeldes: tõsiseid kõrvalmõjusid tekkis `r round((nakatumisiKatsetes1$SE_K/sum(nakatumisiKatsetes1$N_total)*10000), digits=0)`-l igast 10 000-st uuringu käigus vaktsineeritust. 
+AstraZeneca/Oxfordi[^4], Moderna[^5] ja Pfizer/BioNtechi[^6] uuringutes osales kokku `r round(Uuringud_PG$N_total + Uuringud_KG$N_total, digits=0)` inimest. Tõsiseid kõrvalmõjusid tekkis nendes kolmes uuringus osalenutest `r round(Uuringud_PG$SE_K + Uuringud_KG$SE_K, digits=0)`-l. Neist `r round(Uuringud_PG$SE_K, digits=0)` ei saanud tegelikult vaktsiini ja ülejäänud `r round(Uuringud_KG$SE_K, digits=0)` said. Ehk teisiti öeldes: tõsiseid kõrvalmõjusid tekkis `r round((Uuringud_KG$SE_K/sum(Uuringud_KG$N_total)*10000), digits=0)`-l igast 10 000-st uuringu käigus vaktsineeritust. 
 
 Kui Eestis oli 11 inimest, kel vaktsiini saamise järel tekkis tõsine terviseprobleem, siis palju oli neid inimesi, keda samal ajal vaktsineeriti ja kel selliseid terviserikkeid ei tekkinud? Ma ei osanud seda täpselt välja selgitada, sest küllap on Ravimiametil raske hinnata, millise perioodi vaktsineeritute pealt need 11 juhtumit kujunenud on. Pakun siinkohal välja hinnangu. Meie vaktsineerimise kulg viimasel kolmel nädalal olnud võrdlemisi sarnane. Kolmel esimesel märtsi nädalal tehti keskmiselt `r round(VaktsineeritudKeskmiselt_week, digits = 0)` vaktsineerimist[^7], nii esimesi kui ka teisi doose kokku. Kui eeldada, et 15. märtsi nädalal Ravimiametile teada antud kõrvalmõjujuhtumid tekkisid enamasti neil, keda märtsis vaktsineeriti ja et kõrvalmõjud võivad tekkida nii pärast esimest kui ka teist doosi, siis tõsiseid kõrvalmõjusid tekkis `r round((11/VaktsineeritudKeskmiselt_week)*10000, digits=0)`-l inimesel iga 10 000 vaktsiini saaja kohta. Samas, tuletagem meelde, et me vaktsineerime hetkel vanemaaealisi ja neid, kel on kroonilisi haiguseid. Ehk teisiti, neid, kel on suur tõenäosus tõsiselt haigestuda ja seda sõltumata vaktsiinist. Me ei saa ilma põhjaliku uurimiseta öelda, et vaktsiin põhjustas tervisehäda.
 
